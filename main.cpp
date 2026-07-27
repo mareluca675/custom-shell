@@ -59,67 +59,6 @@ void type_command(const std::vector<std::string>& words) {
     std::string currPath;
 
     // Parsing the PATH variable and stopping each time we encounter a PATH_SEPARATOR
-#include <iostream>
-#include <string>
-#include <vector>
-#include <filesystem>
-#include <unistd.h>
-
-namespace fs = std::filesystem;
-
-#ifdef _WIN32
-  constexpr char PATH_SEPARATOR = ';';
-#else
-  constexpr char PATH_SEPARATOR = ':';
-#endif
-
-constexpr char ECHO[] = "echo";
-constexpr char EXIT[] = "exit";
-constexpr char TYPE[] = "type";
-
-void extract_words(const std::string& userInput, std::vector<std::string>& words) {
-  std::string word = "";
-
-  for(const char& ch : userInput) {
-    if(ch == ' ') {
-      if(word != "") {
-        words.push_back(word);
-      }
-
-      word = "";
-    }
-    else {
-      word += ch;
-    }
-  }
-
-  if(word != "") {
-    words.push_back(word);
-  }
-}
-
-void echo_command(const std::vector<std::string>& string) {
-  for(size_t i = 1; i < string.size(); ++i) {
-    std::cout << string[i] << ' ';
-  }
-
-  std::cout << std::endl;
-}
-
-void type_command(const std::vector<std::string>& words) {
-  std::string command = words.at(1);
-
-  if(command == ECHO ||
-     command == EXIT ||
-     command == TYPE) {
-    std::cout << command << " is a shell builtin" << std::endl;
-  }
-  else {
-    // Creatina a string stream in order to read the paths separately easier
-    std::istringstream pathStream(std::getenv("PATH"));
-    std::string currPath;
-
-    // Parsing the PATH variable and stopping each time we encounter a PATH_SEPARATOR
     while(std::getline(pathStream, currPath, PATH_SEPARATOR)) {
       // Constructing the wanted file path
       std::string wantedFilePath = currPath + '/' + command;
