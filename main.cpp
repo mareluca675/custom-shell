@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <format>
@@ -58,7 +59,8 @@ void type_command(const std::vector<std::string>& words) {
   if(command == ECHO ||
      command == EXIT ||
      command == TYPE ||
-     command == PWD) {
+     command == PWD ||
+     command == CD) {
     std::cout << command << " is a shell builtin" << std::endl;
   }
   else {
@@ -83,14 +85,14 @@ void type_command(const std::vector<std::string>& words) {
 }
 
 void start_exec(const std::vector<std::string>& words) {
-  const char *argv_list[words.size()] = {};
-  size_t argv_len = 0;
+  std::vector<char*> argv_list;
+  argv_list.reserve(words.size() + 1);
 
   for(const std::string& word : words) {
-    argv_list[argv_len++] = word.c_str();
+    argv_list.push_back(const_cast<char*>(word.c_str()));
   }
 
-  argv_list[argv_len] = NULL;
+  argv_list.push_back(nullptr);
 
   // Creatina a string stream in order to read the paths separately easier
   std::istringstream pathStream(std::getenv("PATH"));
@@ -106,13 +108,19 @@ void start_exec(const std::vector<std::string>& words) {
     if(access(wantedFilePath.c_str(), X_OK) == 0) {
       // Status information for the exit of the child
       int status;
+      pid_t pid = fork();
 
       // Child process
-      if(fork() == 0) {
-        execvp(wantedFilePath.c_str(), const_cast<char* const*>(argv_list));
+      if(pid == -1) {
+        perror("fork error: ");
+        return;
+      }
+      else if(pid == 0) {
+        execv(wantedFilePath.c_str(), argv_list.data());
+        _exit(123);
       }
 
-      wait(&status);
+      waitpid(pid, &status, 1);
       return;
     }
   }
@@ -127,7 +135,19 @@ void pwd_command() {
   return;
 }
 
-void cd_command(const std::string& new_dir) {
+void cd_command(const std::vector<std::string>& words) {
+  if(words.size() == 1) {
+    std::cerr << "cd: missing directory" << std::endl;
+    return;
+  }
+
+  if(words.size() > 2) {
+    std::cerr << "cd: too many arguments" << std::endl;
+    return;
+  }
+
+  std::string new_dir = words.at(1);
+
   if(new_dir == "~") {
     chdir(std::getenv("HOME"));
     return;
@@ -156,7 +176,7 @@ void process_command(const std::vector<std::string>& words) {
     pwd_command();
   }
   else if(command == CD) {
-    cd_command(words.at(1));
+    cd_command(words);
   }
   else {
     start_exec(words);
@@ -171,7 +191,11 @@ int main() {
   while(true) {
     std::cout << "$ ";
     std::string userInput;
-    getline(std::cin, userInput);
+
+    if(!getline(std::cin, userInput)) {
+      std::cout << std::endl;
+      break;
+    }
 
     std::vector<std::string> words;
     extract_words(userInput, words);
