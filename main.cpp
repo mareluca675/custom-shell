@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <format>
 
 #include <filesystem>
 #include <unistd.h>
@@ -16,6 +17,7 @@ constexpr char ECHO[] = "echo";
 constexpr char EXIT[] = "exit";
 constexpr char TYPE[] = "type";
 constexpr char PWD[] = "pwd";
+constexpr char CD[] = "cd";
 
 void extract_words(const std::string& userInput, std::vector<std::string>& words) {
   std::string word = "";
@@ -119,10 +121,18 @@ void start_exec(const std::vector<std::string>& words) {
   return;
 }
 
-std::string pwd_command() {
+void pwd_command() {
   std::string current_dir = std::filesystem::current_path();
   std::cout << current_dir << std::endl;
-  return current_dir;
+  return;
+}
+
+void cd_command(const std::string& new_dir) {
+  if(chdir(new_dir.c_str()) == -1) {
+    std::cout << format("cd: {}: No such file or directory", new_dir) << std::endl;
+  }
+
+  return;
 }
 
 void process_command(const std::vector<std::string>& words) {
@@ -139,6 +149,9 @@ void process_command(const std::vector<std::string>& words) {
   }
   else if(command == PWD) {
     pwd_command();
+  }
+  else if(command == CD) {
+    cd_command(words.at(1));
   }
   else {
     start_exec(words);
