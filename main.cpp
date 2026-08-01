@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #ifdef _WIN32
   constexpr char PATH_SEPARATOR = ';';
@@ -14,6 +15,7 @@
 constexpr char ECHO[] = "echo";
 constexpr char EXIT[] = "exit";
 constexpr char TYPE[] = "type";
+constexpr char PWD[] = "pwd";
 
 void extract_words(const std::string& userInput, std::vector<std::string>& words) {
   std::string word = "";
@@ -53,7 +55,8 @@ void type_command(const std::vector<std::string>& words) {
 
   if(command == ECHO ||
      command == EXIT ||
-     command == TYPE) {
+     command == TYPE ||
+     command == PWD) {
     std::cout << command << " is a shell builtin" << std::endl;
   }
   else {
@@ -78,6 +81,15 @@ void type_command(const std::vector<std::string>& words) {
 }
 
 void start_exec(const std::vector<std::string>& words) {
+  const char *argv_list[words.size()] = {};
+  size_t argv_len = 0;
+
+  for(const std::string& word : words) {
+    argv_list[argv_len++] = word.c_str();
+  }
+
+  argv_list[argv_len] = NULL;
+
   // Creatina a string stream in order to read the paths separately easier
   std::istringstream pathStream(std::getenv("PATH"));
   std::string command = words[0];
@@ -90,19 +102,27 @@ void start_exec(const std::vector<std::string>& words) {
 
     // Checking if the file exists and execute access
     if(access(wantedFilePath.c_str(), X_OK) == 0) {
-      std::string wantedExec = command;
+      // Status information for the exit of the child
+      int status;
 
-      for(size_t i = 1; i < words.size(); ++i) {
-        wantedExec = wantedFilePath + ' ' + words[i];
+      // Child process
+      if(fork() == 0) {
+        execvp(wantedFilePath.c_str(), const_cast<char* const*>(argv_list));
       }
 
-      system(wantedExec.c_str());
+      wait(&status);
       return;
     }
   }
 
   std::cout << command << ": command not found" << std::endl;
   return;
+}
+
+std::string pwd_command() {
+  std::string current_dir = std::filesystem::current_path();
+  std::cout << current_dir << std::endl;
+  return current_dir;
 }
 
 void process_command(const std::vector<std::string>& words) {
@@ -116,6 +136,9 @@ void process_command(const std::vector<std::string>& words) {
   }
   else if(command == TYPE) {
     type_command(words);
+  }
+  else if(command == PWD) {
+    pwd_command();
   }
   else {
     start_exec(words);
