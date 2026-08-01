@@ -128,6 +128,11 @@ void pwd_command() {
 }
 
 void cd_command(const std::string& new_dir) {
+  if(new_dir == "~") {
+    chdir(std::getenv("HOME"));
+    return;
+  }
+
   if(chdir(new_dir.c_str()) == -1) {
     std::cout << format("cd: {}: No such file or directory", new_dir) << std::endl;
   }
