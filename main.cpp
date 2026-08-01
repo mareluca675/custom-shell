@@ -1,10 +1,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+
 #include <filesystem>
 #include <unistd.h>
-
-namespace fs = std::filesystem;
 
 #ifdef _WIN32
   constexpr char PATH_SEPARATOR = ';';
@@ -46,6 +45,10 @@ void echo_command(const std::vector<std::string>& string) {
 }
 
 void type_command(const std::vector<std::string>& words) {
+  if(words.size() == 1) {
+    return;
+  }
+
   std::string command = words.at(1);
 
   if(command == ECHO ||
@@ -74,6 +77,37 @@ void type_command(const std::vector<std::string>& words) {
   }
 }
 
+void start_exec(const std::vector<std::string>& words) {
+  const char *argv_list[words.size()] = {};
+  size_t argv_len = 0;
+
+  for(const std::string& word : words) {
+    argv_list[argv_len++] = word.c_str();
+  }
+
+  argv_list[argv_len] = NULL;
+
+  // Creatina a string stream in order to read the paths separately easier
+  std::istringstream pathStream(std::getenv("PATH"));
+  std::string command = words[0];
+  std::string currPath;
+
+  // Parsing the PATH variable and stopping each time we encounter a PATH_SEPARATOR
+  while(std::getline(pathStream, currPath, PATH_SEPARATOR)) {
+    // Constructing the wanted file path
+    std::string wantedFilePath = currPath + '/' + command;
+
+    // Checking if the file exists and execute access
+    if(access(wantedFilePath.c_str(), X_OK) == 0) {
+      execv(wantedFilePath.c_str(), const_cast<char* const*>(argv_list));
+      return;
+    }
+  }
+
+  std::cout << command << ": command not found" << std::endl;
+  return;
+}
+
 void process_command(const std::vector<std::string>& words) {
   std::string command = words.at(0);
 
@@ -83,11 +117,11 @@ void process_command(const std::vector<std::string>& words) {
   else if(command == ECHO) {
     echo_command(words);
   }
-  else if(command == "type") {
+  else if(command == TYPE) {
     type_command(words);
   }
   else {
-    std::cout << command << ": command not found" << std::endl;
+    start_exec(words);
   }
 }
 
@@ -106,4 +140,6 @@ int main() {
 
     process_command(words);
   }
+
+  return 0;
 }
